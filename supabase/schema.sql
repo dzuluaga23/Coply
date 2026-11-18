@@ -281,6 +281,43 @@ drop policy if exists "miembros borran bolsas" on public.envelopes;
 create policy "miembros borran bolsas" on public.envelopes
   for delete using (public.is_family_member(family_id));
 
+-- ---------- Semáforo DIAN (datos manuales por miembro) ----------
+-- Los ingresos, consumos y compras se calculan de los movimientos y tarjetas;
+-- aquí se guardan los datos que la app no puede saber: patrimonio bruto y
+-- valores que quedaron por fuera de los registros (extras).
+create table if not exists public.dian_data (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  profile_id uuid not null references public.profiles (id) on delete cascade,
+  year int not null,
+  patrimonio_bruto numeric(16, 2) not null default 0 check (patrimonio_bruto >= 0),
+  extra_ingresos numeric(16, 2) not null default 0 check (extra_ingresos >= 0),
+  extra_tarjeta numeric(16, 2) not null default 0 check (extra_tarjeta >= 0),
+  extra_compras numeric(16, 2) not null default 0 check (extra_compras >= 0),
+  extra_consignaciones numeric(16, 2) not null default 0 check (extra_consignaciones >= 0),
+  updated_by uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (family_id, profile_id, year)
+);
+
+alter table public.dian_data enable row level security;
+
+drop policy if exists "miembros leen dian" on public.dian_data;
+create policy "miembros leen dian" on public.dian_data
+  for select using (public.is_family_member(family_id));
+
+drop policy if exists "miembros crean dian" on public.dian_data;
+create policy "miembros crean dian" on public.dian_data
+  for insert with check (public.is_family_member(family_id));
+
+drop policy if exists "miembros actualizan dian" on public.dian_data;
+create policy "miembros actualizan dian" on public.dian_data
+  for update using (public.is_family_member(family_id));
+
+drop policy if exists "miembros borran dian" on public.dian_data;
+create policy "miembros borran dian" on public.dian_data
+  for delete using (public.is_family_member(family_id));
+
 -- ---------- Tarjetas de crédito ----------
 create table if not exists public.cards (
   id uuid primary key default gen_random_uuid(),

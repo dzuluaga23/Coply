@@ -115,3 +115,15 @@ export interface TransactionWithMeta extends Transaction {
   category: Pick<Category, "name" | "color"> | null;
   profile: Pick<Profile, "display_name"> | null;
 }
+
+export interface DianData {
+  id: string;
+  family_id: string;
+  profile_id: string;
+  year: number;
+  patrimonio_bruto: number;
+  extra_ingresos: number;
+  extra_tarjeta: number;
+  extra_compras: number;
+  extra_consignaciones: number;
+}

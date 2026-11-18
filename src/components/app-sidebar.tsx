@@ -10,6 +10,7 @@ import {
   Wallet,
   PiggyBank,
   CreditCard,
+  Landmark,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,6 +41,7 @@ const items = [
   { title: "Bolsas", url: "/panel/bolsas", icon: PiggyBank },
   { title: "Tarjetas", url: "/panel/tarjetas", icon: CreditCard },
   { title: "Movimientos", url: "/panel/movimientos", icon: ListOrdered },
+  { title: "Semáforo DIAN", url: "/panel/dian", icon: Landmark },
   { title: "Mi familia", url: "/panel/familia", icon: UsersRound },
 ];
 
