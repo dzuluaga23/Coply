@@ -57,6 +57,7 @@ export interface CardPurchase {
   description: string;
   total_amount: number;
   installments: number;
+  interest_rate: number;
   first_month: string;
   created_at: string;
 }

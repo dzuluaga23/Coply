@@ -301,9 +301,13 @@ create table if not exists public.card_purchases (
   description text not null default '',
   total_amount numeric(14, 2) not null check (total_amount > 0),
   installments int not null check (installments between 1 and 60),
+  interest_rate numeric(5, 3) not null default 0,
   first_month date not null,
   created_at timestamptz not null default now()
 );
+
+-- Para bases de datos ya creadas antes de agregar intereses
+alter table public.card_purchases add column if not exists interest_rate numeric(5, 3) not null default 0;
 
 create index if not exists card_purchases_card_idx on public.card_purchases (card_id);
 

@@ -33,9 +33,38 @@ export function purchaseActiveIn(p: CardPurchase, month: string): boolean {
   return diff >= 0 && diff < p.installments;
 }
 
-/** Valor de cada cuota de una compra */
+/**
+ * Valor de la cuota con la fórmula de cuota fija que usan los bancos:
+ * - Sin interés: cuota = total / n
+ * - Con interés mensual i: cuota = P·i / (1 - (1+i)^-n)
+ */
+export function calcInstallment(
+  total: number,
+  installments: number,
+  monthlyRatePercent = 0
+): number {
+  const i = monthlyRatePercent / 100;
+  if (i <= 0) return total / installments;
+  return (total * i) / (1 - Math.pow(1 + i, -installments));
+}
+
+/** Valor de cada cuota de una compra (incluye el interés si tiene) */
 export function installmentValue(p: CardPurchase): number {
-  return Number(p.total_amount) / p.installments;
+  return calcInstallment(
+    Number(p.total_amount),
+    p.installments,
+    Number(p.interest_rate ?? 0)
+  );
+}
+
+/** Total a pagar de la compra: cuota × número de cuotas */
+export function purchaseTotalWithInterest(p: CardPurchase): number {
+  return installmentValue(p) * p.installments;
+}
+
+/** Cuánto de interés paga en total esa compra (0 si no tiene) */
+export function purchaseInterest(p: CardPurchase): number {
+  return purchaseTotalWithInterest(p) - Number(p.total_amount);
 }
 
 /**

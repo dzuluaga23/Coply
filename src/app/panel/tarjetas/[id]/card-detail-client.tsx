@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCOP, formatDateShort, todayISO } from "@/lib/format";
-import { currentMonthKey, installmentValue, monthLabel, remainingInstallments, shiftMonth } from "@/lib/cards";
+import { calcInstallment, currentMonthKey, installmentValue, monthLabel, purchaseInterest, remainingInstallments, shiftMonth } from "@/lib/cards";
 import type { CardPayment, CardPurchase } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -108,7 +108,7 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Deuda total</CardDescription>
+            <CardDescription>Total a pagar (con intereses)</CardDescription>
             <CardTitle className="text-xl tabular-nums text-muted-foreground">
               {formatCOP(totalDebt)}
             </CardTitle>
@@ -178,6 +178,8 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
                         {p.installments} cuota(s) de {formatCOP(installmentValue(p))} ·{" "}
                         primera en {monthLabel(p.first_month.slice(0, 7))} · quedan{" "}
                         {remainingInstallments(p)}
+                        {Number(p.interest_rate ?? 0) > 0 &&
+                          ` · intereses ${formatCOP(purchaseInterest(p))}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -291,8 +293,15 @@ function AddPurchaseDialog({ cardId }: { cardId: string }) {
   const [description, setDescription] = useState("");
   const [total, setTotal] = useState("");
   const [installments, setInstallments] = useState("1");
+  const [interest, setInterest] = useState("0");
   const [firstMonth, setFirstMonth] = useState(shiftMonth(currentMonthKey(), 1));
   const [loading, setLoading] = useState(false);
+
+  // Estimación de cuota en vivo (misma fórmula del banco)
+  const estTotal = Number(total.replace(/[^\d.]/g, "")) || 0;
+  const estN = Number(installments) || 1;
+  const estRate = Number(interest) || 0;
+  const estCuota = estTotal > 0 ? calcInstallment(estTotal, estN, estRate) : 0;
 
   const monthOptions = Array.from({ length: 8 }, (_, i) =>
     shiftMonth(currentMonthKey(), i)
@@ -334,6 +343,7 @@ function AddPurchaseDialog({ cardId }: { cardId: string }) {
         description: description.trim(),
         total_amount: totalValue,
         installments: inst,
+        interest_rate: estRate,
         first_month: `${firstMonth}-01`,
       });
 
@@ -405,21 +415,49 @@ function AddPurchaseDialog({ cardId }: { cardId: string }) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Primera cuota en</Label>
-              <Select value={firstMonth} onValueChange={setFirstMonth}>
-                <SelectTrigger className="w-full capitalize">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((m) => (
-                    <SelectItem key={m} value={m} className="capitalize">
-                      {monthLabel(m)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="p-rate">Interés mensual (%)</Label>
+              <Input
+                id="p-rate"
+                type="number"
+                min={0}
+                max={99}
+                step="0.01"
+                placeholder="Ej: 2.35"
+                value={interest}
+                onChange={(e) => setInterest(e.target.value)}
+              />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Primera cuota en</Label>
+            <Select value={firstMonth} onValueChange={setFirstMonth}>
+              <SelectTrigger className="w-full capitalize">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((m) => (
+                  <SelectItem key={m} value={m} className="capitalize">
+                    {monthLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {estTotal > 0 && (
+            <div className="rounded-lg bg-muted px-3 py-2.5 text-sm">
+              <p>
+                Cuota estimada:{" "}
+                <span className="font-semibold">{formatCOP(estCuota)}</span> por{" "}
+                {estN} mes(es)
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {estRate > 0
+                  ? `Con interés del ${estRate}% mensual pagas ${formatCOP(estCuota * estN)} en total (${formatCOP(estCuota * estN - estTotal)} de intereses)`
+                  : `Sin interés: pagas ${formatCOP(estTotal)} en total`}
+              </p>
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Guardando..." : "Registrar compra"}

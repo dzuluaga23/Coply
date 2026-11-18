@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { CardPayment, CardPurchase } from "@/lib/types";
-import { buildSchedule } from "@/lib/cards";
+import { buildSchedule, purchaseTotalWithInterest } from "@/lib/cards";
 import { CardDetailClient } from "./card-detail-client";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -49,7 +49,7 @@ export default async function CardDetailPage({
     profile?: { display_name: string } | null;
   })[];
 
-  const totalDebt = cardPurchases.reduce((s, p) => s + Number(p.total_amount), 0);
+  const totalDebt = cardPurchases.reduce((s, p) => s + purchaseTotalWithInterest(p), 0);
   const paid = cardPayments.reduce((s, p) => s + Number(p.amount), 0);
 
   return (

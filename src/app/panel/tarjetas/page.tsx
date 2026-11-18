@@ -7,6 +7,7 @@ import {
   buildSchedule,
   currentMonthKey,
   monthLabel,
+  purchaseTotalWithInterest,
   remainingInstallments,
 } from "@/lib/cards";
 import { CardsClient } from "./cards-client";
@@ -61,7 +62,7 @@ async function TarjetasContent() {
     const cardPurchases = allPurchases.filter((p) => p.card_id === c.id);
     const cardPayments = allPayments.filter((p) => p.card_id === c.id);
 
-    const totalDebt = cardPurchases.reduce((s, p) => s + Number(p.total_amount), 0);
+    const totalDebt = cardPurchases.reduce((s, p) => s + purchaseTotalWithInterest(p), 0);
     const paid = cardPayments.reduce((s, p) => s + Number(p.amount), 0);
     const remaining = Math.max(totalDebt - paid, 0);
 
