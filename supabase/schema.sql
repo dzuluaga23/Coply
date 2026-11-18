@@ -186,7 +186,8 @@ drop policy if exists "autor edita su movimiento" on public.transactions;
 create policy "autor edita su movimiento" on public.transactions
   for update using (public.is_family_member(family_id) and created_by = auth.uid());
 
-drop policy if exists "autor borra su movimiento" on public.transactions
+drop policy if exists "autor borra su movimiento" on public.transactions;
+create policy "autor borra su movimiento" on public.transactions
   for delete using (public.is_family_member(family_id) and created_by = auth.uid());
 
 -- ============================================================
