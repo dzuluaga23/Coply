@@ -46,6 +46,11 @@ export interface Card {
   cutoff_day: number;
   credit_limit: number;
   color: string;
+  franchise: string;
+  issuer: string;
+  card_type: string;
+  tier: string;
+  last4: string;
   created_at: string;
 }
 
@@ -79,6 +84,11 @@ export interface CardSummary {
   cutoff_day: number;
   credit_limit: number;
   color: string;
+  franchise: string;
+  issuer: string;
+  card_type: string;
+  tier: string;
+  last4: string;
   totalDebt: number;
   paid: number;
   remaining: number;

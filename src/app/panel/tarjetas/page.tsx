@@ -58,6 +58,11 @@ async function TarjetasContent() {
     cutoff_day: number;
     credit_limit: number;
     color: string;
+    franchise: string;
+    issuer: string;
+    card_type: string;
+    tier: string;
+    last4: string;
   }>).map((c) => {
     const cardPurchases = allPurchases.filter((p) => p.card_id === c.id);
     const cardPayments = allPayments.filter((p) => p.card_id === c.id);
@@ -76,6 +81,11 @@ async function TarjetasContent() {
       cutoff_day: c.cutoff_day,
       credit_limit: Number(c.credit_limit),
       color: c.color,
+      franchise: c.franchise,
+      issuer: c.issuer,
+      card_type: c.card_type,
+      tier: c.tier,
+      last4: c.last4,
       totalDebt,
       paid,
       remaining,

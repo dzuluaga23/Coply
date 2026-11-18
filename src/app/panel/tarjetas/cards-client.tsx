@@ -6,6 +6,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCOP } from "@/lib/format";
 import type { CardSummary } from "@/lib/types";
+import {
+  CardVisual,
+  FRANCHISES,
+  FRANCHISE_ACCENT,
+  ISSUERS,
+  TIER_LABELS,
+  type Franchise,
+  type Tier,
+} from "@/components/card-visual";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +34,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { CreditCard, PlusCircle, CalendarClock } from "lucide-react";
 
@@ -82,19 +98,25 @@ export function CardsClient({ cards }: { cards: CardSummary[] }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
             <Link key={c.id} href={`/panel/tarjetas/${c.id}`} className="group">
-              <Card className="h-full transition-shadow group-hover:shadow-md">
-                <div className="h-2 w-full rounded-t-lg" style={{ backgroundColor: c.color }} />
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    {c.name}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-1.5">
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    Corte el día {c.cutoff_day}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
+              <div className="h-full rounded-2xl border bg-card transition-shadow group-hover:shadow-md">
+                <div className="p-4 pb-0">
+                  <CardVisual
+                    franchise={c.franchise}
+                    issuer={c.issuer}
+                    tier={c.tier}
+                    last4={c.last4}
+                    cardType={c.card_type}
+                    className="transition-transform group-hover:-translate-y-1"
+                  />
+                </div>
+                <CardContent className="space-y-2 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base">{c.name}</CardTitle>
+                    <CardDescription className="flex shrink-0 items-center gap-1.5">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      {c.cutoff_day}
+                    </CardDescription>
+                  </div>
                   <div className="flex items-baseline justify-between">
                     <span className="text-xs text-muted-foreground">Por pagar hoy</span>
                     <span className="font-semibold tabular-nums">
@@ -114,7 +136,7 @@ export function CardsClient({ cards }: { cards: CardSummary[] }) {
                     {formatCOP(c.credit_limit)}
                   </p>
                 </CardContent>
-              </Card>
+              </div>
             </Link>
           ))}
         </div>
@@ -131,20 +153,27 @@ function CreateCardDialog({
   setOpen: (v: boolean) => void;
 }) {
   const router = useRouter();
+  const [franchise, setFranchise] = useState<Franchise>("visa");
+  const [issuer, setIssuer] = useState("Bancolombia");
+  const [customIssuer, setCustomIssuer] = useState("");
+  const [cardType, setCardType] = useState("credito");
+  const [tier, setTier] = useState<Tier>("clasica");
   const [name, setName] = useState("");
   const [cutoffDay, setCutoffDay] = useState("15");
   const [limit, setLimit] = useState("");
-  const [color, setColor] = useState("#8b5cf6");
+  const [last4, setLast4] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const colors = [
-    { value: "#8b5cf6", label: "Violeta" },
-    { value: "#0ea5e9", label: "Celeste" },
-    { value: "#f59e0b", label: "Ámbar" },
-    { value: "#ef4444", label: "Rojo" },
-    { value: "#10b981", label: "Esmeralda" },
-    { value: "#334155", label: "Grafito" },
-  ];
+  const issuerList = ISSUERS[franchise];
+  const isCustomIssuer = !issuerList.includes(issuer);
+
+  function changeFranchise(v: string) {
+    setFranchise(v as Franchise);
+    setIssuer(ISSUERS[v as Franchise][0]);
+  }
+
+  const finalIssuer =
+    issuer === "Otro" ? customIssuer.trim() || "Banco" : issuer;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -153,6 +182,10 @@ function CreateCardDialog({
       const day = Number(cutoffDay);
       if (!day || day < 1 || day > 28) {
         toast.error("El día de corte va del 1 al 28.");
+        return;
+      }
+      if (last4 && !/^\d{4}$/.test(last4)) {
+        toast.error("Los 4 últimos dígitos deben ser 4 números.");
         return;
       }
       const limitValue = Number(limit.replace(/[^\d.]/g, "")) || 0;
@@ -175,12 +208,21 @@ function CreateCardDialog({
         return;
       }
 
+      const displayName =
+        name.trim() ||
+        `${finalIssuer} · ${cardType === "debito" ? "Débito" : TIER_LABELS[tier]}`;
+
       const { error } = await supabase.from("cards").insert({
         family_id: member.family_id,
-        name: name.trim(),
+        name: displayName,
         cutoff_day: day,
         credit_limit: limitValue,
-        color,
+        color: FRANCHISE_ACCENT[franchise],
+        franchise,
+        issuer: finalIssuer,
+        card_type: cardType,
+        tier: cardType === "debito" ? "clasica" : tier,
+        last4,
       });
 
       if (error) {
@@ -192,6 +234,7 @@ function CreateCardDialog({
       setOpen(false);
       setName("");
       setLimit("");
+      setLast4("");
       router.refresh();
     } finally {
       setLoading(false);
@@ -206,30 +249,119 @@ function CreateCardDialog({
           Nueva tarjeta
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Nueva tarjeta</DialogTitle>
           <DialogDescription>
-            Registra cómo la lleva tu banco: nombre, corte y cupo.
+            Elige la franquicia y el banco; mira cómo queda tu tarjeta en vivo.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="card-name">Nombre</Label>
-            <Input
-              id="card-name"
-              placeholder="Ej: Visa Bancolombia"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              maxLength={40}
-            />
-          </div>
+          {/* Vista previa estilo wallet */}
+          <CardVisual
+            franchise={franchise}
+            issuer={finalIssuer}
+            tier={cardType === "debito" ? "clasica" : tier}
+            last4={last4}
+            cardType={cardType}
+            small
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="card-cutoff">Día de corte</Label>
+              <Label>Franquicia</Label>
+              <Select value={franchise} onValueChange={changeFranchise}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FRANCHISES.map((f) => (
+                    <SelectItem key={f.value} value={f.value}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Banco / emisor</Label>
+              <Select value={issuer} onValueChange={setIssuer}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {issuerList.map((i) => (
+                    <SelectItem key={i} value={i}>
+                      {i}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {isCustomIssuer && (
+            <div className="space-y-2">
+              <Label htmlFor="custom-issuer">¿Cuál banco?</Label>
               <Input
-                id="card-cutoff"
+                id="custom-issuer"
+                placeholder="Escribe el nombre del banco"
+                value={customIssuer}
+                onChange={(e) => setCustomIssuer(e.target.value)}
+                maxLength={30}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={cardType} onValueChange={setCardType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="credito">Crédito</SelectItem>
+                  <SelectItem value="debito">Débito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {cardType === "credito" ? (
+              <div className="space-y-2">
+                <Label>Nivel</Label>
+                <Select value={tier} onValueChange={(v) => setTier(v as Tier)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(TIER_LABELS) as Tier[]).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {TIER_LABELS[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="c-cutoff">Día de corte (opcional)</Label>
+                <Input
+                  id="c-cutoff"
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={cutoffDay}
+                  onChange={(e) => setCutoffDay(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          {cardType === "credito" && (
+            <div className="space-y-2">
+              <Label htmlFor="c-cutoff2">Día de corte</Label>
+              <Input
+                id="c-cutoff2"
                 type="number"
                 min={1}
                 max={28}
@@ -238,34 +370,32 @@ function CreateCardDialog({
                 required
               />
             </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="card-limit">Cupo</Label>
+              <Label htmlFor="c-limit">Cupo</Label>
               <Input
-                id="card-limit"
+                id="c-limit"
                 inputMode="numeric"
                 placeholder="Ej: 2000000"
                 value={limit}
                 onChange={(e) => setLimit(e.target.value)}
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Color</Label>
-            <div className="flex gap-2">
-              {colors.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setColor(c.value)}
-                  className={`h-8 w-8 rounded-full border-2 transition-transform ${
-                    color === c.value ? "scale-110 border-foreground" : "border-transparent"
-                  }`}
-                  style={{ backgroundColor: c.value }}
-                  aria-label={c.label}
-                />
-              ))}
+            <div className="space-y-2">
+              <Label htmlFor="c-last4">4 últimos dígitos</Label>
+              <Input
+                id="c-last4"
+                inputMode="numeric"
+                placeholder="Ej: 4567"
+                value={last4}
+                onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                maxLength={4}
+              />
             </div>
           </div>
+
           <DialogFooter>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Guardando..." : "Registrar tarjeta"}

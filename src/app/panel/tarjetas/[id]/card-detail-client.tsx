@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCOP, formatDateShort, todayISO } from "@/lib/format";
 import { calcInstallment, currentMonthKey, installmentValue, monthLabel, purchaseInterest, remainingInstallments, shiftMonth } from "@/lib/cards";
+import { CardVisual, TIER_LABELS, type Tier } from "@/components/card-visual";
 import type { CardPayment, CardPurchase } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +52,18 @@ import {
 } from "lucide-react";
 
 interface DetailProps {
-  card: { id: string; name: string; cutoff_day: number; credit_limit: number; color: string };
+  card: {
+    id: string;
+    name: string;
+    cutoff_day: number;
+    credit_limit: number;
+    color: string;
+    franchise: string;
+    issuer: string;
+    card_type: string;
+    tier: string;
+    last4: string;
+  };
   purchases: (CardPurchase & { profile?: { display_name: string } | null })[];
   payments: (CardPayment & { profile?: { display_name: string } | null })[];
   schedule: Array<{ month: string; due: number }>;
@@ -72,16 +84,30 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
             Tarjetas
           </Link>
         </Button>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <span className="h-4 w-4 rounded-full" style={{ backgroundColor: card.color }} />
-              {card.name}
-            </h1>
-            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-              <CalendarClock className="h-3.5 w-3.5" />
-              Corte el día {card.cutoff_day} de cada mes
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-5">
+            <CardVisual
+              franchise={card.franchise}
+              issuer={card.issuer}
+              tier={card.tier}
+              last4={card.last4}
+              cardType={card.card_type}
+              small
+              className="w-44 shrink-0"
+            />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{card.name}</h1>
+              <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                <CalendarClock className="h-3.5 w-3.5" />
+                Corte el día {card.cutoff_day} de cada mes
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {card.issuer || "Sin banco"} ·{" "}
+                {card.card_type === "debito"
+                  ? "Débito"
+                  : TIER_LABELS[(card.tier as Tier) ?? "clasica"]}
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
             <AddPurchaseDialog cardId={card.id} />

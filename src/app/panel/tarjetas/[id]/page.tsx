@@ -61,6 +61,11 @@ export default async function CardDetailPage({
           cutoff_day: card.cutoff_day,
           credit_limit: Number(card.credit_limit),
           color: card.color,
+          franchise: card.franchise,
+          issuer: card.issuer,
+          card_type: card.card_type,
+          tier: card.tier,
+          last4: card.last4,
         }}
         purchases={cardPurchases}
         payments={cardPayments}

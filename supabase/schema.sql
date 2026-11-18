@@ -289,8 +289,20 @@ create table if not exists public.cards (
   cutoff_day int not null check (cutoff_day between 1 and 28),
   credit_limit numeric(14, 2) not null default 0 check (credit_limit >= 0),
   color text not null default '#8b5cf6',
+  franchise text not null default 'otra',
+  issuer text not null default '',
+  card_type text not null default 'credito',
+  tier text not null default 'clasica',
+  last4 text not null default '',
   created_at timestamptz not null default now()
 );
+
+-- Para bases de datos creadas antes de agregar la apariencia tipo wallet
+alter table public.cards add column if not exists franchise text not null default 'otra';
+alter table public.cards add column if not exists issuer text not null default '';
+alter table public.cards add column if not exists card_type text not null default 'credito';
+alter table public.cards add column if not exists tier text not null default 'clasica';
+alter table public.cards add column if not exists last4 text not null default '';
 
 -- Compras a cuotas en una tarjeta
 create table if not exists public.card_purchases (
