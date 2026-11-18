@@ -294,6 +294,8 @@ create table if not exists public.cards (
   card_type text not null default 'credito',
   tier text not null default 'clasica',
   last4 text not null default '',
+  -- Días entre la fecha de corte y la fecha límite de pago (Bancolombia, BBVA, Nu dan entre 15 y 20)
+  payment_due_days int not null default 18 check (payment_due_days between 5 and 30),
   created_at timestamptz not null default now()
 );
 
@@ -303,6 +305,7 @@ alter table public.cards add column if not exists issuer text not null default '
 alter table public.cards add column if not exists card_type text not null default 'credito';
 alter table public.cards add column if not exists tier text not null default 'clasica';
 alter table public.cards add column if not exists last4 text not null default '';
+alter table public.cards add column if not exists payment_due_days int not null default 18;
 
 -- Compras a cuotas en una tarjeta
 create table if not exists public.card_purchases (

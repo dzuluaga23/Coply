@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCOP, formatDateShort, todayISO } from "@/lib/format";
-import { calcInstallment, currentMonthKey, installmentValue, monthLabel, purchaseInterest, remainingInstallments, shiftMonth } from "@/lib/cards";
+import { calcInstallment, currentMonthKey, extractoCerrado, extractoDueDate, installmentValue, localTodayISO, monthLabel, purchaseInterest, remainingInstallments, shiftMonth } from "@/lib/cards";
 import { CardVisual, TIER_LABELS, type Tier } from "@/components/card-visual";
 import type { CardPayment, CardPurchase } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ interface DetailProps {
     card_type: string;
     tier: string;
     last4: string;
+    payment_due_days: number;
   };
   purchases: (CardPurchase & { profile?: { display_name: string } | null })[];
   payments: (CardPayment & { profile?: { display_name: string } | null })[];
@@ -109,7 +110,8 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
               <h1 className="text-2xl font-bold tracking-tight">{card.name}</h1>
               <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
                 <CalendarClock className="h-3.5 w-3.5" />
-                Corte el día {card.cutoff_day} de cada mes
+                Corte el día {card.cutoff_day} de cada mes · pagas hasta{" "}
+                {card.payment_due_days} días después
               </p>
               <p className="text-xs text-muted-foreground">
                 {card.issuer || "Sin banco"} ·{" "}
@@ -177,6 +179,8 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
                 due={s.due}
                 covered={paidByMonth.get(s.month) ?? 0}
                 cardId={card.id}
+                cutoffDay={card.cutoff_day}
+                paymentDueDays={card.payment_due_days}
               />
             ))}
           </ul>
@@ -309,15 +313,23 @@ function ScheduleRow({
   due,
   covered,
   cardId,
+  cutoffDay,
+  paymentDueDays,
 }: {
   month: string;
   due: number;
   covered: number;
   cardId: string;
+  cutoffDay: number;
+  paymentDueDays: number;
 }) {
+  const today = localTodayISO();
   const monthRemaining = Math.max(due - covered, 0);
   const paidFully = due > 0 && monthRemaining === 0;
   const partial = covered > 0 && monthRemaining > 0;
+  const cerrado = extractoCerrado(month, cutoffDay, today);
+  const dueDate = extractoDueDate(month, cutoffDay, paymentDueDays);
+  const enMora = cerrado && today > dueDate;
 
   return (
     <li className="flex items-center justify-between gap-3 py-2.5">
@@ -329,6 +341,16 @@ function ScheduleRow({
           <p className="text-xs text-muted-foreground tabular-nums">
             {formatCOP(due)}
             {partial && ` · falta ${formatCOP(monthRemaining)}`}
+            {cerrado && !paidFully
+              ? enMora
+                ? ` · venció el ${formatDateShort(dueDate)} (mora)`
+                : ` · vence el ${formatDateShort(dueDate)}`
+              : ""}
+          </p>
+        )}
+        {!cerrado && !paidFully && due > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Se cierra el día {cutoffDay} — hasta entonces solo se puede abonar
           </p>
         )}
       </div>
@@ -340,12 +362,23 @@ function ScheduleRow({
             <CheckCircle2 className="h-3.5 w-3.5" />
             Pagado
           </span>
-        ) : (
+        ) : cerrado ? (
           <PayMonthDialog
             cardId={cardId}
             month={month}
             suggested={monthRemaining}
             partial={partial}
+            dueDate={dueDate}
+            enMora={enMora}
+          />
+        ) : (
+          <AddPaymentDialog
+            cardId={cardId}
+            trigger={
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+                Abonar
+              </Button>
+            }
           />
         )}
       </div>
@@ -359,11 +392,15 @@ function PayMonthDialog({
   month,
   suggested,
   partial,
+  dueDate,
+  enMora,
 }: {
   cardId: string;
   month: string;
   suggested: number;
   partial: boolean;
+  dueDate: string;
+  enMora: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -450,6 +487,13 @@ function PayMonthDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
+          {enMora && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+              ⚠️ La fecha límite era el {formatDateShort(dueDate)}. En el banco
+              esto genera <strong>intereses de mora</strong>; regístralo para no
+              perderle la pista.
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor={`pay-m-${month}`}>Valor pagado</Label>
             <Input
@@ -693,7 +737,13 @@ function AddPurchaseDialog({ cardId }: { cardId: string }) {
   );
 }
 
-function AddPaymentDialog({ cardId }: { cardId: string }) {
+function AddPaymentDialog({
+  cardId,
+  trigger,
+}: {
+  cardId: string;
+  trigger?: React.ReactNode;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -752,10 +802,12 @@ function AddPaymentDialog({ cardId }: { cardId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <HandCoins className="h-4 w-4" />
-          Abonar
-        </Button>
+        {trigger ?? (
+          <Button variant="outline">
+            <HandCoins className="h-4 w-4" />
+            Abonar
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>

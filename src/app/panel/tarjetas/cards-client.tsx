@@ -160,6 +160,7 @@ function CreateCardDialog({
   const [tier, setTier] = useState<Tier>("clasica");
   const [name, setName] = useState("");
   const [cutoffDay, setCutoffDay] = useState("15");
+  const [paymentDueDays, setPaymentDueDays] = useState("18");
   const [limit, setLimit] = useState("");
   const [last4, setLast4] = useState("");
   const [loading, setLoading] = useState(false);
@@ -182,6 +183,11 @@ function CreateCardDialog({
       const day = Number(cutoffDay);
       if (!day || day < 1 || day > 28) {
         toast.error("El día de corte va del 1 al 28.");
+        return;
+      }
+      const dueDays = Number(paymentDueDays) || 18;
+      if (dueDays < 5 || dueDays > 30) {
+        toast.error("Los días para pagar van del 5 al 30.");
         return;
       }
       if (last4 && !/^\d{4}$/.test(last4)) {
@@ -223,6 +229,7 @@ function CreateCardDialog({
         card_type: cardType,
         tier: cardType === "debito" ? "clasica" : tier,
         last4,
+        payment_due_days: dueDays,
       });
 
       if (error) {
@@ -358,17 +365,34 @@ function CreateCardDialog({
           </div>
 
           {cardType === "credito" && (
-            <div className="space-y-2">
-              <Label htmlFor="c-cutoff2">Día de corte</Label>
-              <Input
-                id="c-cutoff2"
-                type="number"
-                min={1}
-                max={28}
-                value={cutoffDay}
-                onChange={(e) => setCutoffDay(e.target.value)}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="c-cutoff2">Día de corte</Label>
+                <Input
+                  id="c-cutoff2"
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={cutoffDay}
+                  onChange={(e) => setCutoffDay(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="c-due">Días para pagar</Label>
+                <Input
+                  id="c-due"
+                  type="number"
+                  min={5}
+                  max={30}
+                  value={paymentDueDays}
+                  onChange={(e) => setPaymentDueDays(e.target.value)}
+                  required
+                />
+                <p className="text-[11px] leading-tight text-muted-foreground">
+                  En Colombia los bancos dan entre 15 y 20 días después del corte
+                </p>
+              </div>
             </div>
           )}
 

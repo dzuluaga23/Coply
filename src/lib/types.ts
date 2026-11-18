@@ -51,6 +51,7 @@ export interface Card {
   card_type: string;
   tier: string;
   last4: string;
+  payment_due_days: number;
   created_at: string;
 }
 

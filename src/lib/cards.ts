@@ -87,6 +87,41 @@ export function buildSchedule(
   return schedule;
 }
 
+/** Hoy (YYYY-MM-DD) en hora local, no UTC (Colombia está a UTC-5) */
+export function localTodayISO(date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+
+/** Fecha de corte de un extracto (YYYY-MM-DD): el día de corte de ese mes */
+export function extractoCutoffDate(month: string, cutoffDay: number): string {
+  return `${month}-${String(cutoffDay).padStart(2, "0")}`;
+}
+
+/**
+ * Fecha límite de pago de un extracto (YYYY-MM-DD):
+ * la fecha de corte + los días que da el banco para pagar (15-20 en Colombia).
+ */
+export function extractoDueDate(
+  month: string,
+  cutoffDay: number,
+  paymentDueDays: number
+): string {
+  const [y, m, d] = extractoCutoffDate(month, cutoffDay).split("-").map(Number);
+  const due = new Date(y, m - 1, d + Math.max(paymentDueDays, 0));
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${due.getFullYear()}-${p(due.getMonth() + 1)}-${p(due.getDate())}`;
+}
+
+/** ¿El extracto de ese mes ya se cerró? Solo entonces existe y se puede pagar */
+export function extractoCerrado(
+  month: string,
+  cutoffDay: number,
+  today = localTodayISO()
+): boolean {
+  return today >= extractoCutoffDate(month, cutoffDay);
+}
+
 /**
  * Cuotas restantes de una compra contando desde el mes actual:
  * cuántas cuotas de esa compra aún no se han "vencido".

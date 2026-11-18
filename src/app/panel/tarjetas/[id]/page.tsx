@@ -66,6 +66,7 @@ export default async function CardDetailPage({
           card_type: card.card_type,
           tier: card.tier,
           last4: card.last4,
+          payment_due_days: Number(card.payment_due_days ?? 18),
         }}
         purchases={cardPurchases}
         payments={cardPayments}
