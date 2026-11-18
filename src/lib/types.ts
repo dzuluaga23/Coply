@@ -39,6 +39,53 @@ export interface Envelope {
   created_at: string;
 }
 
+export interface Card {
+  id: string;
+  family_id: string;
+  name: string;
+  cutoff_day: number;
+  credit_limit: number;
+  color: string;
+  created_at: string;
+}
+
+export interface CardPurchase {
+  id: string;
+  family_id: string;
+  card_id: string;
+  created_by: string;
+  description: string;
+  total_amount: number;
+  installments: number;
+  first_month: string;
+  created_at: string;
+}
+
+export interface CardPayment {
+  id: string;
+  family_id: string;
+  card_id: string;
+  created_by: string;
+  amount: number;
+  note: string;
+  paid_at: string;
+  created_at: string;
+}
+
+export interface CardSummary {
+  id: string;
+  name: string;
+  cutoff_day: number;
+  credit_limit: number;
+  color: string;
+  totalDebt: number;
+  paid: number;
+  remaining: number;
+  nextMonthDue: number;
+  nextMonthLabel: string;
+  purchasesCount: number;
+}
+
 export interface Transaction {
   id: string;
   family_id: string;

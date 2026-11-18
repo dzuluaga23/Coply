@@ -281,6 +281,93 @@ drop policy if exists "miembros borran bolsas" on public.envelopes;
 create policy "miembros borran bolsas" on public.envelopes
   for delete using (public.is_family_member(family_id));
 
+-- ---------- Tarjetas de crédito ----------
+create table if not exists public.cards (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  name text not null,
+  cutoff_day int not null check (cutoff_day between 1 and 28),
+  credit_limit numeric(14, 2) not null default 0 check (credit_limit >= 0),
+  color text not null default '#8b5cf6',
+  created_at timestamptz not null default now()
+);
+
+-- Compras a cuotas en una tarjeta
+create table if not exists public.card_purchases (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  card_id uuid not null references public.cards (id) on delete cascade,
+  created_by uuid not null references public.profiles (id) on delete cascade,
+  description text not null default '',
+  total_amount numeric(14, 2) not null check (total_amount > 0),
+  installments int not null check (installments between 1 and 60),
+  first_month date not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists card_purchases_card_idx on public.card_purchases (card_id);
+
+-- Abonos (pagos) a una tarjeta
+create table if not exists public.card_payments (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  card_id uuid not null references public.cards (id) on delete cascade,
+  created_by uuid not null references public.profiles (id) on delete cascade,
+  amount numeric(14, 2) not null check (amount > 0),
+  note text not null default '',
+  paid_at date not null default current_date,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists card_payments_card_idx on public.card_payments (card_id);
+
+alter table public.cards enable row level security;
+alter table public.card_purchases enable row level security;
+alter table public.card_payments enable row level security;
+
+-- cards
+drop policy if exists "miembros leen tarjetas" on public.cards;
+create policy "miembros leen tarjetas" on public.cards
+  for select using (public.is_family_member(family_id));
+
+drop policy if exists "miembros crean tarjetas" on public.cards;
+create policy "miembros crean tarjetas" on public.cards
+  for insert with check (public.is_family_member(family_id));
+
+drop policy if exists "miembros editan tarjetas" on public.cards;
+create policy "miembros editan tarjetas" on public.cards
+  for update using (public.is_family_member(family_id));
+
+drop policy if exists "miembros borran tarjetas" on public.cards;
+create policy "miembros borran tarjetas" on public.cards
+  for delete using (public.is_family_member(family_id));
+
+-- card_purchases
+drop policy if exists "miembros leen compras" on public.card_purchases;
+create policy "miembros leen compras" on public.card_purchases
+  for select using (public.is_family_member(family_id));
+
+drop policy if exists "miembros crean compras" on public.card_purchases;
+create policy "miembros crean compras" on public.card_purchases
+  for insert with check (public.is_family_member(family_id) and created_by = auth.uid());
+
+drop policy if exists "miembros borran compras" on public.card_purchases;
+create policy "miembros borran compras" on public.card_purchases
+  for delete using (public.is_family_member(family_id) and created_by = auth.uid());
+
+-- card_payments
+drop policy if exists "miembros leen abonos" on public.card_payments;
+create policy "miembros leen abonos" on public.card_payments
+  for select using (public.is_family_member(family_id));
+
+drop policy if exists "miembros crean abonos" on public.card_payments;
+create policy "miembros crean abonos" on public.card_payments
+  for insert with check (public.is_family_member(family_id) and created_by = auth.uid());
+
+drop policy if exists "miembros borran abonos" on public.card_payments;
+create policy "miembros borran abonos" on public.card_payments
+  for delete using (public.is_family_member(family_id) and created_by = auth.uid());
+
 -- ============================================================
 -- Tiempo real: los movimientos se sincronizan al instante
 -- (con excepción controlada: si ya estaba agregada, no pasa nada)
