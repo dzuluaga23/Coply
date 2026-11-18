@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getUserContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { formatCOP, formatDateShort, formatMonth, startOfMonthISO } from "@/lib/format";
@@ -12,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -21,9 +24,34 @@ import {
 
 export const instant = false;
 
-export default async function PanelPage() {
+export default function PanelPage() {
+  return (
+    <Suspense fallback={<PanelSkeleton />}>
+      <PanelContent />
+    </Suspense>
+  );
+}
+
+function PanelSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">
+      <Skeleton className="h-8 w-56" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-72" />
+        <Skeleton className="h-72" />
+      </div>
+    </div>
+  );
+}
+
+async function PanelContent() {
   const ctx = await getUserContext();
-  if (!ctx?.family) return null;
+  if (!ctx?.family) redirect("/bienvenida");
 
   const supabase = await createClient();
   const monthStart = startOfMonthISO();
@@ -112,12 +140,11 @@ export default async function PanelPage() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-1.5">
               <Wallet className="h-4 w-4 text-muted-foreground" />
-              Queda en la bolsa
+              Queda en la billetera
             </CardDescription>
             <CardTitle
-              className={`text-2xl tabular-nums ${
-                balance < 0 ? "text-red-500" : "text-foreground"
-              }`}
+              className={`text-2xl tabular-nums ${balance < 0 ? "text-red-500" : "text-foreground"
+                }`}
             >
               {formatCOP(balance)}
             </CardTitle>
@@ -190,9 +217,8 @@ export default async function PanelPage() {
                       </p>
                     </div>
                     <span
-                      className={`shrink-0 text-sm font-medium tabular-nums ${
-                        t.kind === "ingreso" ? "text-emerald-600" : "text-foreground"
-                      }`}
+                      className={`shrink-0 text-sm font-medium tabular-nums ${t.kind === "ingreso" ? "text-emerald-600" : "text-foreground"
+                        }`}
                     >
                       {t.kind === "ingreso" ? "+" : "−"}
                       {formatCOP(Number(t.amount))}

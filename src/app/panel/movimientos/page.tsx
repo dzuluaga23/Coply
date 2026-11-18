@@ -1,11 +1,30 @@
+import { Suspense } from "react";
 import { getUserContext } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { Category, TransactionWithMeta } from "@/lib/types";
 import { MovementsClient } from "./movements-client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const instant = false;
 
-export default async function MovimientosPage() {
+export default function MovimientosPage() {
+  return (
+    <Suspense fallback={<MovimientosSkeleton />}>
+      <MovimientosContent />
+    </Suspense>
+  );
+}
+
+function MovimientosSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-96" />
+    </div>
+  );
+}
+
+async function MovimientosContent() {
   const ctx = await getUserContext();
   if (!ctx?.family) return null;
 
