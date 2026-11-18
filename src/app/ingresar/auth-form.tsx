@@ -85,7 +85,7 @@ export function AuthForm() {
           <Wallet className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight">
-          PlataClara
+          Coply
         </CardTitle>
         <CardDescription>
           {mode === "login"

@@ -1,4 +1,4 @@
-# PlataClara 💰
+# Coply 💰
 
 **Las finanzas de tu familia, claras.** App web de presupuesto familiar para
 Colombia: cada quien registra sus gastos desde su celular y todos ven lo mismo

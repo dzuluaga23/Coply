@@ -61,13 +61,13 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild tooltip="PlataClara">
+            <SidebarMenuButton size="lg" asChild tooltip="Coply">
               <div>
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <Wallet className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">PlataClara</span>
+                  <span className="truncate font-semibold">Coply</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {familyName}
                   </span>

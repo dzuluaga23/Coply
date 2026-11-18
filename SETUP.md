@@ -1,4 +1,4 @@
-# 🚀 Cómo poner PlataClara a funcionar (15 minutos)
+# 🚀 Cómo poner Coply a funcionar (15 minutos)
 
 La app ya está construida. Solo falta conectarla con **Supabase** (gratis),
 que es donde se guardan los datos y se hacen las cuentas de usuario.
@@ -7,7 +7,7 @@ que es donde se guardan los datos y se hacen las cuentas de usuario.
 
 1. Entra a <https://supabase.com> y crea una cuenta (puedes usar Google o GitHub).
 2. Clic en **New project**.
-3. Nombre: `plataclara` (o el que quieras).
+3. Nombre: `coply` (o el que quieras).
 4. Contraseña de base de datos: dale "Generate" y guárdala (no la vamos a necesitar para nada más, pero por si acaso).
 5. Región: la más cercana, por ejemplo `us-east-1` (Miami) o `sa-east-1` (São Paulo).
 6. Espera ~2 minutos a que se cree.

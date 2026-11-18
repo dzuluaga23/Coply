@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlataClara · Las finanzas de tu familia, claras",
+  title: "Coply · Las finanzas de tu familia, claras",
   description:
     "La app de finanzas del hogar: presupuesto en familia, todos ven lo mismo al instante.",
 };

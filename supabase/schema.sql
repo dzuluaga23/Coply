@@ -1,5 +1,5 @@
 -- ============================================================
--- PlataClara · Esquema de base de datos (Supabase / PostgreSQL)
+-- Coply · Esquema de base de datos (Supabase / PostgreSQL)
 -- Multi-tenant: cada familia es una "isla" aislada con RLS.
 -- Ejecutar completo en el SQL Editor de Supabase.
 -- ============================================================
