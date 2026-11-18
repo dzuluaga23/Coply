@@ -137,7 +137,7 @@ create policy "crear propio perfil" on public.profiles
 -- families
 drop policy if exists "miembros ven su familia" on public.families;
 create policy "miembros ven su familia" on public.families
-  for select using (public.is_family_member(id));
+  for select using (public.is_family_member(id) or created_by = auth.uid());
 
 drop policy if exists "crear propia familia" on public.families;
 create policy "crear propia familia" on public.families
