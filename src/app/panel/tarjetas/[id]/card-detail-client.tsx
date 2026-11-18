@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   CalendarClock,
+  CheckCircle2,
   CreditCard,
   HandCoins,
   MoreVertical,
@@ -74,6 +75,15 @@ interface DetailProps {
 export function CardDetailClient({ card, purchases, payments, schedule, totalDebt, paid }: DetailProps) {
   const router = useRouter();
   const remaining = Math.max(totalDebt - paid, 0);
+
+  // Cuánto se ha pagado cubriendo el extracto de cada mes
+  const paidByMonth = new Map<string, number>();
+  for (const p of payments) {
+    if (p.paid_month) {
+      const m = p.paid_month.slice(0, 7);
+      paidByMonth.set(m, (paidByMonth.get(m) ?? 0) + Number(p.amount));
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">
@@ -161,18 +171,13 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
         <CardContent>
           <ul className="divide-y">
             {schedule.map((s) => (
-              <li key={s.month} className="flex items-center justify-between py-2.5">
-                <span className="text-sm capitalize">
-                  {s.month === currentMonthKey() ? "Este mes" : monthLabel(s.month)}
-                </span>
-                <span
-                  className={`text-sm font-medium tabular-nums ${
-                    s.due === 0 ? "text-muted-foreground" : "text-foreground"
-                  }`}
-                >
-                  {s.due === 0 ? "Sin cuotas" : formatCOP(s.due)}
-                </span>
-              </li>
+              <ScheduleRow
+                key={s.month}
+                month={s.month}
+                due={s.due}
+                covered={paidByMonth.get(s.month) ?? 0}
+                cardId={card.id}
+              />
             ))}
           </ul>
         </CardContent>
@@ -259,6 +264,9 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
                         {p.note || "Abono"}
                       </p>
                       <p className="text-xs text-muted-foreground">
+                        {p.paid_month
+                          ? `Extracto de ${monthLabel(p.paid_month.slice(0, 7))} · `
+                          : ""}
                         {formatDateShort(p.paid_at)} ·{" "}
                         {p.profile?.display_name ?? "Alguien"}
                       </p>
@@ -295,8 +303,198 @@ export function CardDetailClient({ card, purchases, payments, schedule, totalDeb
   );
 }
 
-function DeleteButton({ label, onDelete }: { label: string; onDelete: () => Promise<void> }) {
+/** Fila del extracto mensual: cuánto toca, qué se ha pagado y botón para pagar */
+function ScheduleRow({
+  month,
+  due,
+  covered,
+  cardId,
+}: {
+  month: string;
+  due: number;
+  covered: number;
+  cardId: string;
+}) {
+  const monthRemaining = Math.max(due - covered, 0);
+  const paidFully = due > 0 && monthRemaining === 0;
+  const partial = covered > 0 && monthRemaining > 0;
+
   return (
+    <li className="flex items-center justify-between gap-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm capitalize">
+          {month === currentMonthKey() ? "Este mes" : monthLabel(month)}
+        </p>
+        {due > 0 && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {formatCOP(due)}
+            {partial && ` · falta ${formatCOP(monthRemaining)}`}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {due === 0 ? (
+          <span className="text-xs text-muted-foreground">Sin cuotas</span>
+        ) : paidFully ? (
+          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Pagado
+          </span>
+        ) : (
+          <PayMonthDialog
+            cardId={cardId}
+            month={month}
+            suggested={monthRemaining}
+            partial={partial}
+          />
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Paga (total o parcial) el extracto de un mes específico */
+function PayMonthDialog({
+  cardId,
+  month,
+  suggested,
+  partial,
+}: {
+  cardId: string;
+  month: string;
+  suggested: number;
+  partial: boolean;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(todayISO());
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const value = Number(amount.replace(/[^\d.]/g, ""));
+      if (!value || value <= 0) {
+        toast.error("Escribe un valor válido.");
+        return;
+      }
+      if (value > suggested) {
+        toast.error(
+          `Ese extracto solo debe ${formatCOP(suggested)}. Para pagar de más, usa un abono libre.`
+        );
+          return;
+      }
+
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: member } = await supabase
+        .from("family_members")
+        .select("family_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!member) {
+        toast.error("No se encontró tu grupo familiar.");
+        return;
+      }
+
+      const { error } = await supabase.from("card_payments").insert({
+        family_id: member.family_id,
+        card_id: cardId,
+        created_by: user.id,
+        amount: value,
+        note: note.trim() || `Pago extracto ${monthLabel(month)}`,
+        paid_at: date,
+        paid_month: `${month}-01`,
+      });
+
+      if (error) {
+        toast.error("No se pudo registrar el pago.");
+        return;
+      }
+
+      toast.success(
+        value === suggested
+          ? "Extracto pagado ✅"
+          : `Pago parcial registrado: falta ${formatCOP(suggested - value)}`
+      );
+      setOpen(false);
+      setAmount("");
+      setNote("");
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          {partial ? "Completar" : "Pagar"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle className="capitalize">
+            Pagar extracto {monthLabel(month)}
+          </DialogTitle>
+          <DialogDescription>
+            {suggested > 0
+              ? `Este extracto debe ${formatCOP(suggested)}. Puedes pagarlo completo o solo una parte.`
+              : "Registra el valor que pagaste."}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`pay-m-${month}`}>Valor pagado</Label>
+            <Input
+              id={`pay-m-${month}`}
+              inputMode="numeric"
+              placeholder={String(Math.round(suggested))}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              className="text-lg"
+              autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`pay-md-${month}`}>Fecha</Label>
+            <Input
+              id={`pay-md-${month}`}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              max={todayISO()}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`pay-mn-${month}`}>Nota (opcional)</Label>
+            <Input
+              id={`pay-mn-${month}`}
+              placeholder={`Pago extracto ${monthLabel(month)}`}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={80}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Registrando..." : "Registrar pago del extracto"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteButton({ label, onDelete }: { label: string; onDelete: () => Promise<void> }) {  return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">

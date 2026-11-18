@@ -75,6 +75,7 @@ export interface CardPayment {
   amount: number;
   note: string;
   paid_at: string;
+  paid_month: string | null;
   created_at: string;
 }
 

@@ -335,6 +335,10 @@ create table if not exists public.card_payments (
   created_at timestamptz not null default now()
 );
 
+-- Un pago puede cubrir el extracto de un mes específico (día 1 de ese mes).
+-- Si es null, es un abono libre que solo baja la deuda total.
+alter table public.card_payments add column if not exists paid_month date;
+
 create index if not exists card_payments_card_idx on public.card_payments (card_id);
 
 alter table public.cards enable row level security;
