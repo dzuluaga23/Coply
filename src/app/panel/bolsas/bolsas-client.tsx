@@ -354,9 +354,13 @@ function CreateEnvelopeDialog({
       }
 
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: member } = await supabase
         .from("family_members")
         .select("family_id")
+        .eq("user_id", user.id)
         .maybeSingle();
       if (!member) {
         toast.error("No se encontró tu grupo familiar.");
