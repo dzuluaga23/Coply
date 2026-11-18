@@ -1,14 +1,17 @@
 -- ============================================================
 -- Coply · Esquema de base de datos (Supabase / PostgreSQL)
 -- Multi-tenant: cada familia es una "isla" aislada con RLS.
--- Ejecutar completo en el SQL Editor de Supabase.
+--
+-- ✅ Este script es SEGURO de volver a ejecutar (idempotente):
+--    usa "if not exists" y borra/recrea políticas y triggers.
+--    Si algo falla antes del final, lo anterior queda aplicado.
 -- ============================================================
 
 -- ---------- Extensiones ----------
 create extension if not exists "pgcrypto";
 
 -- ---------- Perfiles de usuario ----------
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   display_name text not null default '',
   avatar_url text,
@@ -16,7 +19,7 @@ create table public.profiles (
 );
 
 -- ---------- Familias (el "tenant") ----------
-create table public.families (
+create table if not exists public.families (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   invite_code text not null unique,
@@ -25,7 +28,7 @@ create table public.families (
 );
 
 -- ---------- Miembros de la familia ----------
-create table public.family_members (
+create table if not exists public.family_members (
   family_id uuid not null references public.families (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   role text not null default 'miembro' check (role in ('dueño', 'miembro')),
@@ -34,7 +37,7 @@ create table public.family_members (
 );
 
 -- ---------- Categorías ----------
-create table public.categories (
+create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families (id) on delete cascade,
   name text not null,
@@ -44,7 +47,7 @@ create table public.categories (
 );
 
 -- ---------- Movimientos (gastos e ingresos) ----------
-create table public.transactions (
+create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families (id) on delete cascade,
   created_by uuid not null references public.profiles (id) on delete cascade,
@@ -56,14 +59,14 @@ create table public.transactions (
   created_at timestamptz not null default now()
 );
 
-create index transactions_family_date_idx on public.transactions (family_id, occurred_at desc);
+create index if not exists transactions_family_date_idx
+  on public.transactions (family_id, occurred_at desc);
 
 -- ============================================================
--- Seguridad: Row Level Security (RLS)
--- Nadie ve ni toca nada de una familia a la que no pertenece.
+-- Funciones auxiliares
 -- ============================================================
 
--- Función auxiliar: ¿el usuario actual pertenece a esta familia?
+-- ¿El usuario actual pertenece a esta familia?
 -- security definer para evitar recursión entre políticas.
 create or replace function public.is_family_member(f_id uuid)
 returns boolean
@@ -78,7 +81,7 @@ as $$
   );
 $$;
 
--- Función para unirse con código de invitación (valida el código en el servidor)
+-- Unirse a una familia con código de invitación (valida en el servidor)
 create or replace function public.join_family(p_code text)
 returns uuid
 language plpgsql
@@ -104,63 +107,86 @@ begin
   return f.id;
 end $$;
 
--- Habilitar RLS en todas las tablas
+-- ============================================================
+-- Seguridad: Row Level Security (RLS)
+-- Nadie ve ni toca nada de una familia a la que no pertenece.
+-- ============================================================
+
 alter table public.profiles enable row level security;
 alter table public.families enable row level security;
 alter table public.family_members enable row level security;
 alter table public.categories enable row level security;
 alter table public.transactions enable row level security;
 
--- profiles: cada uno ve y edita el suyo; los de su familia puede verlos
+-- profiles
+drop policy if exists "ver propio perfil" on public.profiles;
 create policy "ver propio perfil" on public.profiles
   for select using (id = auth.uid() or public.is_family_member(
     (select family_id from public.family_members m where m.user_id = auth.uid() limit 1)
   ));
 
+drop policy if exists "editar propio perfil" on public.profiles;
 create policy "editar propio perfil" on public.profiles
   for update using (id = auth.uid());
 
--- families: solo los miembros ven su familia; solo quien la creó la edita
+-- Permite que la app repare un perfil faltante (cuenta creada antes del esquema)
+drop policy if exists "crear propio perfil" on public.profiles;
+create policy "crear propio perfil" on public.profiles
+  for insert with check (id = auth.uid());
+
+-- families
+drop policy if exists "miembros ven su familia" on public.families;
 create policy "miembros ven su familia" on public.families
   for select using (public.is_family_member(id));
 
+drop policy if exists "crear propia familia" on public.families;
 create policy "crear propia familia" on public.families
   for insert with check (created_by = auth.uid());
 
+drop policy if exists "dueño edita su familia" on public.families;
 create policy "dueño edita su familia" on public.families
   for update using (created_by = auth.uid());
 
--- family_members: ves a los de tu familia y tu propia fila
+-- family_members
+drop policy if exists "ver miembros de mi familia" on public.family_members;
 create policy "ver miembros de mi familia" on public.family_members
   for select using (user_id = auth.uid() or public.is_family_member(family_id));
 
+drop policy if exists "insertar propia membresia" on public.family_members;
 create policy "insertar propia membresia" on public.family_members
   for insert with check (user_id = auth.uid());
 
 -- categories
+drop policy if exists "miembros leen categorias" on public.categories;
 create policy "miembros leen categorias" on public.categories
   for select using (public.is_family_member(family_id));
 
+drop policy if exists "miembros crean categorias" on public.categories;
 create policy "miembros crean categorias" on public.categories
   for insert with check (public.is_family_member(family_id));
 
+drop policy if exists "miembros editan categorias" on public.categories;
 create policy "miembros editan categorias" on public.categories
   for update using (public.is_family_member(family_id));
 
+drop policy if exists "miembros borran categorias" on public.categories;
 create policy "miembros borran categorias" on public.categories
   for delete using (public.is_family_member(family_id));
 
 -- transactions
+drop policy if exists "miembros leen movimientos" on public.transactions;
 create policy "miembros leen movimientos" on public.transactions
   for select using (public.is_family_member(family_id));
 
+drop policy if exists "miembros crean movimientos" on public.transactions;
 create policy "miembros crean movimientos" on public.transactions
   for insert with check (public.is_family_member(family_id) and created_by = auth.uid());
 
+drop policy if exists "autor edita su movimiento" on public.transactions;
 create policy "autor edita su movimiento" on public.transactions
   for update using (public.is_family_member(family_id) and created_by = auth.uid());
 
-create policy "autor borra su movimiento" on public.transactions
+drop policy if exists "autor borra su movimiento" on public.transactions
   for delete using (public.is_family_member(family_id) and created_by = auth.uid());
 
 -- ============================================================
@@ -179,13 +205,22 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'display_name', split_part(new.email, '@', 1))
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Reparar perfiles de cuentas creadas ANTES de aplicar este esquema
+insert into public.profiles (id, display_name)
+select u.id,
+       coalesce(u.raw_user_meta_data ->> 'display_name', split_part(u.email, '@', 1))
+from auth.users u
+on conflict (id) do nothing;
 
 -- Categorías por defecto al crear una familia
 create or replace function public.create_default_categories()
@@ -211,13 +246,20 @@ begin
   return new;
 end $$;
 
+drop trigger if exists on_family_created on public.families;
 create trigger on_family_created
   after insert on public.families
   for each row execute function public.create_default_categories();
 
 -- ============================================================
 -- Tiempo real: los movimientos se sincronizan al instante
--- (si esta línea falla porque ya existe, puedes ignorarla)
+-- (con excepción controlada: si ya estaba agregada, no pasa nada)
 -- ============================================================
 alter table public.transactions replica identity full;
-alter publication supabase_realtime add table public.transactions;
+
+do $$
+begin
+  execute 'alter publication supabase_realtime add table public.transactions';
+exception when duplicate_object then
+  null; -- ya estaba en la publicación
+end $$;

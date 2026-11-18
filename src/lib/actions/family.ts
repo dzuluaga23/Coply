@@ -14,6 +14,38 @@ function generateInviteCode(): string {
   return code;
 }
 
+/**
+ * Se asegura de que exista el perfil del usuario en la base de datos.
+ * Repara cuentas creadas antes de ejecutar el esquema en Supabase.
+ * Retorna null si todo bien, o el mensaje de error.
+ */
+async function ensureProfile(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { id: string; email?: string; user_metadata?: Record<string, unknown> }
+): Promise<string | null> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile) return null;
+
+  const displayName =
+    (user.user_metadata?.display_name as string | undefined) ||
+    user.email?.split("@")[0] ||
+    "";
+
+  const { error } = await supabase
+    .from("profiles")
+    .insert({ id: user.id, display_name: displayName });
+
+  if (error) {
+    return `No se pudo crear tu perfil de usuario: ${error.message}`;
+  }
+  return null;
+}
+
 export interface ActionResult {
   error?: string;
 }
@@ -27,6 +59,10 @@ export async function createFamily(
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/ingresar");
+
+  // Reparar perfil si falta
+  const profileError = await ensureProfile(supabase, user);
+  if (profileError) return { error: profileError };
 
   const name = String(formData.get("name") ?? "").trim();
   if (name.length < 2) {
@@ -60,7 +96,7 @@ export async function createFamily(
     .single();
 
   if (familyError || !family) {
-    return { error: "No se pudo crear la familia. Intenta de nuevo." };
+    return { error: `No se pudo crear la familia: ${familyError?.message ?? "sin detalles"}` };
   }
 
   const { error: memberError } = await supabase
@@ -68,7 +104,7 @@ export async function createFamily(
     .insert({ family_id: family.id, user_id: user.id, role: "dueño" });
 
   if (memberError) {
-    return { error: "La familia se creó pero no se pudo registrar tu membresía." };
+    return { error: `La familia se creó pero no se pudo registrar tu membresía: ${memberError.message}` };
   }
 
   revalidatePath("/panel");
@@ -85,6 +121,10 @@ export async function joinFamily(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/ingresar");
 
+  // Reparar perfil si falta
+  const profileError = await ensureProfile(supabase, user);
+  if (profileError) return { error: profileError };
+
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
   if (code.length !== 6) {
     return { error: "El código tiene 6 caracteres. Revisa e intenta de nuevo." };
@@ -95,7 +135,7 @@ export async function joinFamily(
   });
 
   if (rpcError || !familyId) {
-    return { error: "Ese código no corresponde a ninguna familia." };
+    return { error: rpcError?.message ?? "Ese código no corresponde a ninguna familia." };
   }
 
   revalidatePath("/panel");
