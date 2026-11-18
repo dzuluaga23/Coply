@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlataClara 💰
 
-## Getting Started
+**Las finanzas de tu familia, claras.** App web de presupuesto familiar para
+Colombia: cada quien registra sus gastos desde su celular y todos ven lo mismo
+al instante.
 
-First, run the development server:
+## Características (Fase 1)
+
+- ✅ Cuentas de usuario con correo y contraseña
+- ✅ Grupos familiares **multi-tenant** con aislamiento real (RLS): cada familia
+  es una isla, ninguna ve los datos de otra
+- ✅ Invitación por **código de 6 caracteres**
+- ✅ Registro de gastos e ingresos en segundos, con categorías por defecto
+- ✅ Panel del mes: entró / salió / queda + "¿en qué se fue la plata?"
+- ✅ Sincronización en **tiempo real** entre los miembros
+- ✅ Design system **shadcn/ui**
+
+## Stack
+
+| Pieza | Tecnología |
+|---|---|
+| App | Next.js 16 (App Router) + React 19 |
+| Estilos | Tailwind CSS v4 + shadcn/ui |
+| Datos y auth | Supabase (PostgreSQL + RLS + Realtime) |
+| Publicación | Vercel |
+
+## Empezar
+
+Ver [SETUP.md](./SETUP.md) — conexión con Supabase y puesta en marcha.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Roadmap
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] Fase 2: bolsas digitales, tarjetas a la colombiana (corte/cuotas/abonos),
+      semáforo tributario DIAN
+- [ ] Fase 3: negocio aparte, plan libertador de deudas, retos de ahorro, PWA
