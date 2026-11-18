@@ -252,6 +252,35 @@ create trigger on_family_created
   after insert on public.families
   for each row execute function public.create_default_categories();
 
+-- ---------- Bolsas de ahorro (metas) ----------
+create table if not exists public.envelopes (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families (id) on delete cascade,
+  name text not null,
+  goal_amount numeric(14, 2) not null check (goal_amount > 0),
+  saved_amount numeric(14, 2) not null default 0 check (saved_amount >= 0),
+  color text not null default '#16a34a',
+  created_at timestamptz not null default now()
+);
+
+alter table public.envelopes enable row level security;
+
+drop policy if exists "miembros leen bolsas" on public.envelopes;
+create policy "miembros leen bolsas" on public.envelopes
+  for select using (public.is_family_member(family_id));
+
+drop policy if exists "miembros crean bolsas" on public.envelopes;
+create policy "miembros crean bolsas" on public.envelopes
+  for insert with check (public.is_family_member(family_id));
+
+drop policy if exists "miembros actualizan bolsas" on public.envelopes;
+create policy "miembros actualizan bolsas" on public.envelopes
+  for update using (public.is_family_member(family_id));
+
+drop policy if exists "miembros borran bolsas" on public.envelopes;
+create policy "miembros borran bolsas" on public.envelopes
+  for delete using (public.is_family_member(family_id));
+
 -- ============================================================
 -- Tiempo real: los movimientos se sincronizan al instante
 -- (con excepción controlada: si ya estaba agregada, no pasa nada)

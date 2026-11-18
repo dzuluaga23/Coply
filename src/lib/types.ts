@@ -29,6 +29,16 @@ export interface Category {
   color: string;
 }
 
+export interface Envelope {
+  id: string;
+  family_id: string;
+  name: string;
+  goal_amount: number;
+  saved_amount: number;
+  color: string;
+  created_at: string;
+}
+
 export interface Transaction {
   id: string;
   family_id: string;

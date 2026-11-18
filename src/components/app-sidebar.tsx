@@ -8,6 +8,7 @@ import {
   UsersRound,
   LogOut,
   Wallet,
+  PiggyBank,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,6 +36,7 @@ import type { Profile } from "@/lib/types";
 
 const items = [
   { title: "Panel", url: "/panel", icon: LayoutDashboard },
+  { title: "Bolsas", url: "/panel/bolsas", icon: PiggyBank },
   { title: "Movimientos", url: "/panel/movimientos", icon: ListOrdered },
   { title: "Mi familia", url: "/panel/familia", icon: UsersRound },
 ];
